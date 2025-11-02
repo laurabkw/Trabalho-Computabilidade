@@ -1,0 +1,264 @@
+body {
+    font-family: Arial, sans-serif;
+    padding: 20px;
+    background-color: white;
+}
+
+h1 {
+    font-size: 24px;
+    font-weight: 500;
+    margin-bottom: 20px;
+}
+
+h2 {
+    font-size: 18px;
+    font-weight: 500;
+    margin-bottom: 10px;
+}
+
+h3 {
+    font-size: 16px;
+    font-weight: 500;
+    margin-bottom: 10px;
+}
+
+h4 {
+    font-size: 14px;
+    font-weight: 500;
+    display: inline;
+    margin-right: 10px;
+}
+
+.simbolos {
+    display: flex;
+    gap: 40px;
+    margin-bottom: 20px;
+}
+
+.simbolos > div {
+    flex: 1;
+}
+
+.simbolos input[type="text"] {
+    padding: 6px 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    margin-right: 8px;
+    width: 80px;
+}
+
+.simbolos input[type="submit"],
+.simbolos button {
+    padding: 6px 12px;
+    margin-right: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background: white;
+    cursor: pointer;
+}
+
+.simbolos button:hover {
+    background: #f0f0f0;
+}
+
+.controleEstado {
+    display: flex;
+    gap: 40px;
+    margin-bottom: 20px;
+}
+
+.controleEstado input[type="checkbox"] {
+    margin-right: 8px;
+}
+
+.removerEstado,
+.conectar-estados {
+    margin-bottom: 20px;
+}
+
+.removerEstado input[type="checkbox"],
+.conectar-estados input[type="checkbox"] {
+    margin-right: 8px;
+    margin-left: 20px;
+}
+
+.removerEstado button {
+    margin-left: 20px;
+    padding: 6px 12px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background: white;
+    cursor: pointer;
+}
+
+.conectar-estados label:first-child {
+    margin-right: 10px;
+}
+
+.botoes {
+    margin-bottom: 30px;
+}
+
+.botoes button {
+    padding: 8px 16px;
+    margin-right: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background: white;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.botoes button:hover {
+    background: #f0f0f0;
+}
+
+.diagramaPilha {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.diagramaContainer {
+    flex: 1;
+}
+
+.diagrama {
+    height: 250px;
+    width: 100%;
+    border: 1px solid black;
+    background: white;
+    position: relative;
+    overflow: hidden;
+}
+
+.transitionsSvg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+#statesContainer {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+.state {
+    position: absolute;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    border: 2px solid black;
+    background: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: move;
+    user-select: none;
+}
+
+.state.active {
+    background: #ffeb3b;
+}
+
+.state.final {
+    box-shadow: 0 0 0 4px white, 0 0 0 6px black;
+}
+
+.state .initial-arrow {
+    position: absolute;
+    left: -30px;
+    top: 22px;
+}
+
+.pilha {
+    width: 150px;
+}
+
+.pilha table {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+.pilha td {
+    width: 100%;
+    height: 30px;
+    border: 1px solid black;
+    text-align: center;
+    vertical-align: middle;
+}
+
+.execucao {
+    margin-bottom: 30px;
+}
+
+.execucao input[type="text"] {
+    padding: 8px;
+    width: 300px;
+    margin-right: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.execucao input[type="submit"] {
+    padding: 8px 16px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background: white;
+    cursor: pointer;
+}
+
+.execucao button {
+    padding: 8px 16px;
+    margin-right: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background: white;
+    cursor: pointer;
+}
+
+.execucao button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.execucao button:not(:disabled):hover {
+    background: #f0f0f0;
+}
+
+.resultado {
+    margin-top: 15px;
+}
+
+.aceita {
+    color: green;
+}
+
+.rejeita {
+    color: red;
+}
+
+.transicoes-lista {
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 15px;
+    margin-top: 20px;
+}
+
+.transicoes-lista ul {
+    list-style: none;
+    padding: 0;
+    margin: 10px 0 0 0;
+}
+
+.transicoes-lista li {
+    padding: 5px 0;
+}
+
+.no-transitions {
+    color: #999;
+}

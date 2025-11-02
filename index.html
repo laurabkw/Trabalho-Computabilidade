@@ -7,9 +7,103 @@
     <title>Simulador</title>
 </head>
 <body>
-    <h1>Página Inicial</h1>
-    
-    <!--não escrever nada depois da tag "script"-->
-    <script src="script.js"></script> 
+    <h1>Simulador de Autômato Finito com Pilha</h1>
+    <form>
+        <div class="simbolos">
+            <div>
+                <h2>Símbolo lido da fita</h2>
+                <input type="text" id="lerFita" maxlength="1">
+                <input type="submit" value="Confirmar" onclick="event.preventDefault()">
+                <button type="button" onclick="setSymbol('lerFita', '?')">?</button>
+                <button type="button" onclick="setSymbol('lerFita', 'ε')">ε</button>
+            </div>
+            <div>
+                <h2>Símbolo lido da pilha</h2>
+                <input type="text" id="lerPilha" maxlength="1">
+                <input type="submit" value="Confirmar" onclick="event.preventDefault()">
+                <button type="button" onclick="setSymbol('lerPilha', '?')">?</button>
+                <button type="button" onclick="setSymbol('lerPilha', 'ε')">ε</button>
+            </div>
+            <div>
+                <h2>Símbolo gravado na pilha</h2>
+                <input type="text" id="escrevePilha" maxlength="1">
+                <input type="submit" value="Confirmar" onclick="event.preventDefault()">
+                <button type="button" onclick="setSymbol('escrevePilha', '?')">?</button>
+                <button type="button" onclick="setSymbol('escrevePilha', 'ε')">ε</button>
+            </div>
+        </div>
+        <div class="controleEstado"><!--Checkboxes para identificar se estado é inicial ou final-->
+            <div>
+                <input type="checkbox" id="inicial" value="Inicial">
+                <label for="inicial">Estado Inicial</label>
+            </div>
+            <div>
+                <input type="checkbox" id="final" value="Final">
+                <label for="final">Estado Final</label>
+            </div>
+        </div>
+
+        <div class="removerEstado" id="removerEstados"><!--Marcar estado a ser removido-->
+            <input type="checkbox" id="removerQ0" value="removerQ0">
+            <label for="removerQ0">Q0</label>
+            <input type="checkbox" id="removerQ1" value="removerQ1">
+            <label for="removerQ1">Q1</label>
+            <button type="button" onclick="removerEstado()">Remover Estado</button>
+        </div>
+
+        <div class="conectar-estados"> <!--Conectar estados-->
+            <label>Conectar com:</label>
+            <span id="conectarEstados">
+                <input type="checkbox" id="conectarQ0" value="q0">
+                <label for="conectarQ0">Q0</label>
+                <input type="checkbox" id="conectarQ1" value="q1">
+                <label for="conectarQ1">Q1</label>
+            </span>
+        </div>
+
+        <div class="botoes"><!--Botões-->
+            <button type="button" onclick="adicionar()">Adicionar</button>
+            <button type="button" onclick="limpar()">Limpar</button>
+        </div>
+    </form>
+    <div class="diagramaPilha">
+        <div class="diagramaContainer">
+            <h2>Diagrama</h2>
+            <div id="diagrama" class="diagrama">
+                <svg id="transitionsSvg" class="transitionsSvg"></svg>
+                <div id="statesContainer"></div>
+            </div>
+        </div>
+        
+        <div class="pilha">
+            <h2>Pilha</h2>
+            <table>
+                <tr><td id="stack5"></td></tr>
+                <tr><td id="stack4"></td></tr>
+                <tr><td id="stack3"></td></tr>
+                <tr><td id="stack2"></td></tr>
+                <tr><td id="stack1"></td></tr>
+                <tr><td id="stack0"></td></tr>
+            </table>
+        </div>
+        </div>
+    </div>
+    <div class="execucao"> <!--Campo para teste do autômati-->
+        <div>
+            <input type="text" id="inputString" placeholder="Insira uma cadeia">
+            <input type="submit" value="Confirmar" onclick="event.preventDefault(); confirmarCadeia()">
+            <br><br>
+            <button type="button" onclick="proximo()">Próximo</button>
+            <button type="button" onclick="parar()">Parar</button>
+            <button type="button" onclick="finalizar()">Finalizar</button>
+            <button type="button" onclick="reiniciar()">Reiniciar</button>
+        </div>
+        <div class="resultado">
+            <h4>Resultado:</h4>
+            <h4 id="aceita" class="aceita" style="display: none;">ACEITA</h4>
+            <h4 id="rejeita" class="rejeita" style="display: none;">REJEITA</h4>
+        </div>
+    </div>
+    <script src="script.js"></script> <!--não escrever nada depois da tag "script"-->
 </body>
 </html>
