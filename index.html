@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="style.css">
+    <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script> <!--vis.js-->
     <title>Simulador</title>
 </head>
 <body>
@@ -61,12 +62,12 @@
             </span>
         </div>
 
-        <div class="botoes"><!--Botões-->
+        <div class="botoes"><!--Botões para adição de estado e limpeza do diagrama-->
             <button type="button" onclick="adicionar()">Adicionar</button>
             <button type="button" onclick="limpar()">Limpar</button>
         </div>
     </form>
-    <div class="diagramaPilha">
+    <div class="diagramaPilha"> <!--Diagrama do Autômato-->
         <div class="diagramaContainer">
             <h2>Diagrama</h2>
             <div id="diagrama" class="diagrama">
@@ -75,7 +76,7 @@
             </div>
         </div>
         
-        <div class="pilha">
+        <div class="pilha"> <!--Pilha-->
             <h2>Pilha</h2>
             <table>
                 <tr><td id="stack5"></td></tr>
@@ -88,7 +89,7 @@
         </div>
         </div>
     </div>
-    <div class="execucao"> <!--Campo para teste do autômati-->
+    <div class="execucao"> <!--Campo para teste do autômato-->
         <div>
             <input type="text" id="inputString" placeholder="Insira uma cadeia">
             <input type="submit" value="Confirmar" onclick="event.preventDefault(); confirmarCadeia()">
