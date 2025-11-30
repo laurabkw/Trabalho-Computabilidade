@@ -30,7 +30,7 @@ let options = { //configura visuais do diagrama
 
 //cria grafo no site
 let network = new vis.Network(container, { nodes, edges }, options);
-let nextNodeId = 0; // começar em 0 (q0)
+let nextNodeId = 0; //começar em 0 (q0)
 
 //função para adicionar novo estado
 function adicionar() { 
@@ -68,11 +68,23 @@ function adicionar() {
         return;
     }
 
+    //valida se os campos de transição foram preenchidos
+    if (!validarTransicao()) {
+        //remove o estado que foi criado
+        nodes.remove(id);
+        //volta o contador
+        nextNodeId--;
+        return;
+    }
+
     //criar as conexões
     conectarNovoEstado(id);
 
     //atualiza os checkboxes de remoção e conexão na tela
     atualizarInterface(id, label);
+    
+    //limpa os campos para a próxima transição
+    limparCamposTransicao();
 }
 
 //função auxiliar da função de adicionar novo estado
@@ -144,6 +156,8 @@ function atualizarInterface(id, label) {
     `;
     
     divRemover.insertBefore(spanRemover, btnRemover);
+    //atualiza o select de origem
+    atualizarSelectOrigem();
 }
 
 //função para remover os checkbox da interface
@@ -154,18 +168,62 @@ function removerCheckboxesInterface(id) {
 
     let spanRemover = document.getElementById(`span-remover-${id}`);
     if (spanRemover) spanRemover.remove();
+    
+    //atualiza o select de origem
+    atualizarSelectOrigem();
 }
 
 //função para limpar tudo
-function limpar() { 
+function limpar() {
+    //limpa os nodos (estados)
     nodes.clear();
+    
+    //limpa as ligações (transições)
     edges.clear();
+    
+    //reseta o contador de ids
     nextNodeId = 0;
     
-    //limpa divs de controle
+    //reseta variáveis de execução
+    executando = false;
+    estadoAtual = null;
+    cadeiaEntrada = "";
+    posicaoFita = 0;
+    pilha = [];
+    estadoInicial = null;
+    
+    //limpa campos de transição
+    document.getElementById("lerFita").value = "";
+    document.getElementById("lerPilha").value = "";
+    document.getElementById("escrevePilha").value = "";
+    
+    //desmarca checkboxes
+    document.getElementById("inicial").checked = false;
+    document.getElementById("final").checked = false;
+    
+    //limpa div de conectar
     document.getElementById("conectarEstados").innerHTML = "";
-    //reseta a div de remover mantendo apenas o botão
-    document.getElementById("removerEstados").innerHTML = '<button type="button" onclick="removerEstado()">Remover Estado</button>';
+    
+    //reseta div de remover
+    document.getElementById("removerEstados").innerHTML = '<button type="button" onclick="removerEstado()">Remover</button>';
+    
+    //limpa campo de cadeia
+    document.getElementById("inputString").value = "";
+    
+    //limpa resultado
+    document.getElementById("aceita").style.display = "none";
+    document.getElementById("rejeita").style.display = "none";
+    
+    //reseta pilha visual
+    for (let i = 0; i <= 5; i++) {
+        let elemento = document.getElementById("stack" + i);
+        if (elemento) {
+            elemento.textContent = "";
+        }
+    }
+    
+    //limpa o select de origem
+    document.getElementById("origemExistente").innerHTML = "";
 }
 
 //função utilitária dos botões "?" e "ε"
@@ -403,4 +461,162 @@ function parar() {
     
     executando = false;
     console.log("Execução parada.");
+}
+
+//função para finalizar execução e mostrar resultado
+function finalizar() {
+    if (!executando) {
+        alert("Por favor, confirme uma cadeia primeiro.");
+        return;
+    }
+    
+    //processa todas as transições restantes automaticamente
+    while (posicaoFita < cadeiaEntrada.length) {
+        //pega símbolo atual da fita
+        let simboloFita = cadeiaEntrada[posicaoFita];
+        let topoPilha = pilha.length > 0 ? pilha[pilha.length - 1] : "";
+        
+        //busca transições possíveis do estado atual
+        let transicoes = edges.get({
+            filter: function(edge) {
+                return edge.from === estadoAtual;
+            }
+        });
+        
+        let transicaoEncontrada = null;
+        
+        //procura transição válida
+        for (let transicao of transicoes) {
+            let trans = parsearTransicao(transicao.label);
+            if (!trans) continue;
+            
+            //verifica símbolo da fita
+            let fitaValida = (trans.lerFita === "" || trans.lerFita === "?" || trans.lerFita === simboloFita);
+            
+            //verifica símbolo da pilha
+            let pilhaValida = (trans.lerPilha === "" || trans.lerPilha === "?" || trans.lerPilha === topoPilha);
+            
+            if (fitaValida && pilhaValida) {
+                transicaoEncontrada = { edge: transicao, trans: trans };
+                break;
+            }
+        }
+        
+        if (!transicaoEncontrada) {
+            break; //sem transição, para
+        }
+        
+        //executa a transição
+        let trans = transicaoEncontrada.trans;
+        
+        //atualiza fita
+        if (trans.lerFita !== "" && trans.lerFita !== "?") {
+            posicaoFita++;
+        }
+        
+        //atualiza pilha
+        if (trans.lerPilha !== "" && trans.lerPilha !== "?") {
+            pilha.pop();
+        }
+        
+        if (trans.escrevePilha !== "" && trans.escrevePilha !== "?") {
+            for (let i = trans.escrevePilha.length - 1; i >= 0; i--) {
+                pilha.push(trans.escrevePilha[i]);
+            }
+        }
+        
+        //atualiza estado
+        estadoAtual = transicaoEncontrada.edge.to;
+    }
+    
+    //finaliza execução
+    executando = false;
+    atualizarPilhaVisual();
+    atualizarEstadoVisual(estadoAtual);
+    
+    //verifica resultado
+    let aceitou = (posicaoFita >= cadeiaEntrada.length && 
+                   pilha.length === 0 && 
+                   nodes.get(estadoAtual).borderWidth === 4);
+    
+    //exibe resultado
+    exibirResultado(aceitou);
+}
+
+//função para exibir resultado (ACEITA ou REJEITA)
+function exibirResultado(aceita) {
+    //limpa resultado anterior
+    document.getElementById("aceita").style.display = "none";
+    document.getElementById("rejeita").style.display = "none";
+    
+    //exibe resultado
+    if (aceita) {
+        document.getElementById("aceita").style.display = "block";
+    } else {
+        document.getElementById("rejeita").style.display = "block";
+    }
+}
+
+//função para atualizar o select de estados
+function atualizarSelectOrigem() {
+    //pega o select
+    let select = document.getElementById("origemExistente");
+    
+    //limpa opções antigas
+    select.innerHTML = "";
+    
+    //pega todos os estados
+    let todosEstados = nodes.get();
+    
+    //adiciona cada estado como opção
+    todosEstados.forEach(estado => {
+        let option = document.createElement("option");
+        option.value = estado.id;
+        option.text = "q" + estado.id;
+        select.appendChild(option);
+    });
+}
+
+//função para conectar estados já existentes
+function conectarExistentes() {
+    //pega o select de origem
+    let selectOrigem = document.getElementById("origemExistente");
+    
+    //verifica se tem estados
+    if (selectOrigem.options.length === 0) {
+        alert("Nenhum estado disponível!");
+        return;
+    }
+    
+    //pega o id do estado de origem selecionado
+    let origemId = parseInt(selectOrigem.value);
+    
+    //usa a função conectarNovoEstado passando a origem
+    conectarNovoEstado(origemId);
+    
+    console.log("Conexões criadas a partir de q" + origemId);
+}
+
+//função para validar se os campos de transição foram preenchidos
+function validarTransicao() {
+    //pega os valores dos inputs
+    let lerFita = document.getElementById("lerFita").value;
+    let lerPilha = document.getElementById("lerPilha").value;
+    let escrevePilha = document.getElementById("escrevePilha").value;
+    
+    //verifica se todos estão vazios
+    if (!lerFita && !lerPilha && !escrevePilha) {
+        alert("Por favor, preencha pelo menos um campo de transição!");
+        return false;
+    }
+    
+    return true;
+}
+
+//função para limpar campos após criar transição
+function limparCamposTransicao() {
+    //limpa os campos
+    document.getElementById("lerFita").value = "";
+    document.getElementById("lerPilha").value = "";
+    document.getElementById("escrevePilha").value = "";
 }

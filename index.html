@@ -53,9 +53,16 @@
             <span id="conectarEstados"></span>
         </div>
 
+        <div class="conectar-existente">
+            <label for="origemExistente">Conectar estado existente:</label>
+            <select id="origemExistente"></select>
+            <button type="button" onclick="conectarExistentes()">Conectar estados</button>
+        </div>
+
+
         <div class="botoes"><!--Botões para adição de estado e limpeza do diagrama-->
             <button type="button" onclick="adicionar()">Adicionar</button>
-            <button type="button" onclick="limpar()">Limpar</button>
+            <button type="button" onclick="limpar()">Limpar Autômato</button>
         </div>
     </form>
     <div class="diagramaPilha"> <!--Diagrama do Autômato-->
