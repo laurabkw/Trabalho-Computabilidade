@@ -45,20 +45,6 @@ let options = { //configura visuais do diagrama
 let network = new vis.Network(container, { nodes, edges }, options);
 let nextNodeId = 0; // começar em 0 (q0)
 
-//função para atualiza o contador do nodo
-//garante que os nomes dos estados sigam uma ordem numérica
-function atualizaNextNodeId(){ //decrementa o contador sempre que um estado é deletado
-    let todos = nodes.get(); //pega todos estados presentes no diagrama até o momento
-    if(todos.length === 0){ //caso não haja nenhum estado no diagrama
-        nextNodeId = 0; //reinicia contador, diagrama vazio = volta ao q0
-        return; //encerra função
-    }
-
-    //se houver estados no diagrama, pega o estado com maior número em seu ID
-    let maior = Math.max(...todos.map(n => n.id));
-    nextNodeId = maior + 1; //incrementa ID
-}
-
 //função para adicionar novo estado
 function adicionar() { 
     let id = nextNodeId++; //incrementa id do estado para que cada novo estado tenha um id único
@@ -109,20 +95,14 @@ function adicionar() {
         return;
     }
 
-    //adiciona novo estado ao autômato
-    automato.estados[id] = {
-        id: id,
-        nome: label,
-        transicoes: {},
-        final: !!isFinal,
-        inicial: !!isInicial
-    };
-
     //criar as conexões
     conectarNovoEstado(id);
 
     //atualiza os checkboxes de remoção e conexão na tela
     atualizarInterface(id, label);
+    
+    //limpa os campos para a próxima transição
+    limparCamposTransicao();
 }
 
 //função auxiliar da função de adicionar novo estado
@@ -239,6 +219,8 @@ function atualizarInterface(id, label) {
     `;
     
     divRemover.insertBefore(spanRemover, btnRemover);
+    //atualiza o select de origem
+    atualizarSelectOrigem();
 }
 
 //função para remover os checkbox da interface
@@ -249,22 +231,66 @@ function removerCheckboxesInterface(id) {
 
     let spanRemover = document.getElementById(`span-remover-${id}`);
     if (spanRemover) spanRemover.remove();
+    
+    //atualiza o select de origem
+    atualizarSelectOrigem();
 }
 
 //função para limpar tudo
-function limpar() { 
+function limpar() {
+    //limpa os nodos (estados)
     nodes.clear();
+    
+    //limpa as ligações (transições)
     edges.clear();
+    
+    //reseta o contador de ids
     nextNodeId = 0;
 
     //limpa todo o conteúdo do autômato
     automato = {estados: {}};
     estadoInicial = null;
     
-    //limpa divs de controle
+    //reseta variáveis de execução
+    executando = false;
+    estadoAtual = null;
+    cadeiaEntrada = "";
+    posicaoFita = 0;
+    pilha = [];
+    estadoInicial = null;
+    
+    //limpa campos de transição
+    document.getElementById("lerFita").value = "";
+    document.getElementById("lerPilha").value = "";
+    document.getElementById("escrevePilha").value = "";
+    
+    //desmarca checkboxes
+    document.getElementById("inicial").checked = false;
+    document.getElementById("final").checked = false;
+    
+    //limpa div de conectar
     document.getElementById("conectarEstados").innerHTML = "";
-    //reseta a div de remover mantendo apenas o botão
-    document.getElementById("removerEstados").innerHTML = '<button type="button" onclick="removerEstado()">Remover Estado</button>';
+    
+    //reseta div de remover
+    document.getElementById("removerEstados").innerHTML = '<button type="button" onclick="removerEstado()">Remover</button>';
+    
+    //limpa campo de cadeia
+    document.getElementById("inputString").value = "";
+    
+    //limpa resultado
+    document.getElementById("aceita").style.display = "none";
+    document.getElementById("rejeita").style.display = "none";
+    
+    //reseta pilha visual
+    for (let i = 0; i <= 5; i++) {
+        let elemento = document.getElementById("stack" + i);
+        if (elemento) {
+            elemento.textContent = "";
+        }
+    }
+    
+    //limpa o select de origem
+    document.getElementById("origemExistente").innerHTML = "";
 }
 
 //função utilitária dos botões "?" e "ε"
@@ -577,139 +603,4 @@ function parar() {
     
     executando = false;
     console.log("Execução parada.");
-}
-
-function reiniciar(){
-    //valida se existe estado inicial no autômato
-    if (!estadoInicial || automato.estados[estadoInicial] === undefined) {
-        alert("Não há estado inicial definido no autômato.");
-        return;
-    }
-
-    //volta para o estado inicial
-    estadoAtual = estadoInicial;
-
-    //volta para o início da cadeia de entrada
-    posicaoFita = 0;
-
-    //remove tudo o que foi adicionado na pilha até o momento
-    pilha = [];
-
-    //atualiza aparência do site
-    atualizarPilhaVisual(); //altera pilha
-    atualizarEstadoVisual(estadoInicial); //atualiza destaque do estado atual
-    console.log("Execução reiniciada.");
-}
-
-//função para completar toda execução do autômato e retornar se a cadeia foi aceita ou não
-function finalizar(){
-    //copia o estado atual, posição de leitura e da pilha
-    let estadoAtual = estado;
-    let posicao = indexEntrada;
-    let pilhaTemp = [...pilha];
-
-    const cadeia = entrada.value; //pega cadeia inserida pelo usuário
-
-    //loop de execução do autômato
-    while(true){
-        //pega símbolo atual da cadeia
-        let simbolo = posicao < cadeia.length ? cadeia[posicao] : "";
-
-        const transicoes = automato[estadoAtual]; //pega todas as transições possíveis para o estado atual
-        if (!transicoes){ //se não existem transições, termina execução
-            console.log("Estado sem transições definidas:", estadoAtual);
-            break;
-        }
-
-        let transicaoEncontrada = null; //guarda a transição que for válida
-
-        //procura uma transição válida
-        for (const t of transicoes) {
-
-            const trans = parsearTransicao(t); //parse do label
-
-            //se o label não for válido, ignora
-            if (!trans) continue;
-
-            //valida se a transição aceita o símbolo atual
-            const leituraOk =
-                trans.ler === simbolo ||
-                trans.ler === "?" ||
-                (trans.ler === "ε" && simbolo === "");
-
-            //verifica se a transição aceita o topo da pilha.
-            const topo = pilhaTemp.length > 0 ? pilhaTemp[pilhaTemp.length - 1] : "";
-
-            const pilhaOk =
-                trans.lerPilha === topo ||
-                trans.lerPilha === "?" ||
-                (trans.lerPilha === "ε" && topo === "");
-
-            //caso leitura e pilha sejam compatíveis, para de procurar, já encontrou transição certa
-            if (leituraOk && pilhaOk) {
-                transicaoEncontrada = trans;
-                break;
-            }
-        }
-
-        //caso nenhuma transição possa ser aplicada, termina execução, autômato dá seu veredito
-        if (!transicaoEncontrada) {
-            console.log("Nenhuma transição adequada encontrada. Encerrando.");
-            break;
-        }
-
-        //aplica a transição encontrada
-        const trans = transicaoEncontrada;
-
-        //consome símbolo da cadeia
-        if (trans.ler !== "?" && trans.ler !== "ε") {
-            posicao++;
-        }
-
-        //remove do topo da pilha
-        if (trans.lerPilha !== "?" && trans.lerPilha !== "ε") {
-            pilhaTemp.pop();
-        }
-
-        //insere na pilha de trás para frente para que o último símbolo fique no topo
-        if (trans.escrevePilha !== "?" &&
-            trans.escrevePilha !== "ε") {
-
-            for (let i = trans.escrevePilha.length - 1; i >= 0; i--) {
-                pilhaTemp.push(trans.escrevePilha[i]);
-            }
-        }
-
-        //muda de estado, segue para o estado destino do atual
-        estadoAtual = trans.proxEstado;
-
-        //caso cadeia tenha terminado e estejamos no estado final, para execução e lança veredito
-        if (posicao >= cadeia.length && estadosFinais.includes(estadoAtual)) {
-            break;
-        }
-
-        //caso não haja mais símbolos para ler e a transição é: ler = ε, escrever = ε
-        //evita loop infinito
-        if (posicao >= cadeia.length &&
-            trans.ler === "ε" &&
-            trans.escrevePilha === "ε") {
-
-            console.warn("Loop infinito evitado em transições ε.");
-            break;
-        }
-
-        //veredito do autômato
-        if (estadosFinais.includes(estadoAtual)){ //se estado final consta na lista
-            //cadeia é aceita, mostra resultado no site
-            document.getElementById("aceita").style.display = "block";
-        } 
-        else{//senão
-            //cadeia é rejeitada, mostra resultado no site
-            document.getElementById("rejeita").style.display = "block";
-        }
-
-        //atualiza pilha visualmente para mostrar como ela ficou no fim da execução
-        pilha = [...pilhaTemp];
-        atualizarPilhaVisual();
-    }
 }
