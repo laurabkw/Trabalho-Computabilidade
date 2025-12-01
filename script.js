@@ -1,3 +1,16 @@
+//variáveis para execução do autômato
+let estadoAtual = null; //usado durante a execução do autômato
+let cadeiaEntrada = ""; //cadeia que será processada
+let posicaoFita = 0; //posição atual da fita
+let pilha = []; //pilha usada pelo autômato
+let executando = false; //flag de execução
+let estadoInicial = null; //ID do estado atual, caso já esteja definido
+
+//cada chave é o ID do estado, guarda informações dos estados, seus nomes, transições, etc
+let automato = {
+    estados: {}
+};
+
 let nodes = new vis.DataSet([]); //cria estrutura de nodos
 let edges = new vis.DataSet([]); //cria estrutura de ligações
 
@@ -32,6 +45,20 @@ let options = { //configura visuais do diagrama
 let network = new vis.Network(container, { nodes, edges }, options);
 let nextNodeId = 0; // começar em 0 (q0)
 
+//função para atualiza o contador do nodo
+//garante que os nomes dos estados sigam uma ordem numérica
+function atualizaNextNodeId(){ //decrementa o contador sempre que um estado é deletado
+    let todos = nodes.get(); //pega todos estados presentes no diagrama até o momento
+    if(todos.length === 0){ //caso não haja nenhum estado no diagrama
+        nextNodeId = 0; //reinicia contador, diagrama vazio = volta ao q0
+        return; //encerra função
+    }
+
+    //se houver estados no diagrama, pega o estado com maior número em seu ID
+    let maior = Math.max(...todos.map(n => n.id));
+    nextNodeId = maior + 1; //incrementa ID
+}
+
 //função para adicionar novo estado
 function adicionar() { 
     let id = nextNodeId++; //incrementa id do estado para que cada novo estado tenha um id único
@@ -40,6 +67,18 @@ function adicionar() {
     //verifica checkboxes
     let isFinal = document.getElementById("final").checked;
     let isInicial = document.getElementById("inicial").checked;
+
+    if(isInicial && isFinal){ //bloqueia inserção caso ambas checkbox estejam marcadas
+        alert("Um estado não pode ser inicial e final ao mesmo tempo.");
+        return;
+    }
+
+    //se já existir um estado inicial, alerta e não permite a inserção de outro estado inicial
+    if(isInicial && estadoInicial !== null){
+        alert("Já existe estado inicial.");
+        nextNodeId--; //desfaz incremente do contador
+        return;
+    }
 
     //configuração visual do nodo
     let nodeOptions = {
@@ -56,7 +95,8 @@ function adicionar() {
 
     //estado inicial
     if (isInicial) {
-        nodeOptions.color = { background: '#ADD8E6' }; 
+        nodeOptions.color = { background: '#ADD8E6'};
+        estadoInicial = id; //atualiza variável global que indica o estado inicial do autômato
     }
 
     //adiciona nodo do novo estado ao DataSet
@@ -65,8 +105,18 @@ function adicionar() {
         console.log("Estado criado com ID: " + id + (isFinal ? " (FINAL)" : "")); 
     } catch (err) {
         alert("Erro ao adicionar estado.");
+        nextNodeId--; //em caso de erro ao concluir inserção, decrementa contador
         return;
     }
+
+    //adiciona novo estado ao autômato
+    automato.estados[id] = {
+        id: id,
+        nome: label,
+        transicoes: {},
+        final: !!isFinal,
+        inicial: !!isInicial
+    };
 
     //criar as conexões
     conectarNovoEstado(id);
@@ -96,8 +146,17 @@ function conectarNovoEstado(origemId) {
                 from: origemId, //qual nodo a linha vai partir (do novo criado)
                 to: destinoId, //para qual nodo ela aponta (o selecionado)
                 label: labelTransicao, //condições de transição(puramente visual)
-                arrows: "to" //define a aparência da linha como uma seta
+                arrows: "from" //define a aparência da linha como uma seta
             });
+
+            console.log(`Adicionando condição de transição: ${origemId} -> ${destinoId}`);
+
+            if(!automato.estados[origemId].transicoes[labelTransicao]){
+                automato.estados[origemId].transicoes[labelTransicao] = [];
+            }
+
+            automato.estados[origemId].transicoes[labelTransicao].push(destinoId);
+            console.log("Transições atualizadas: ", automato.estados[origemId].transicoes);
         }
     });
 }
@@ -116,8 +175,44 @@ function removerEstado() {
             
             //remove visualmente os inputs da interface
             removerCheckboxesInterface(idParaRemover);
+
+            //remove estado da estrutura do autômato
+            delete automato.estados[idParaRemover];
+            console.log(`Removendo transições que apontam para ${idParaRemover}`);
+
+            for(let idEstado in automato.estados){ //percorre todos os estados do autômato
+                let trans = automato.estados[idEstado].transicoes; //pega o objeto de transição de cada estado
+                for(let label in trans){ //percorre as condições de transição
+
+                    //filtra por destinos diferentes do removido
+                    let destinosOriginais = trans[label]; //aponta para lista de destinos
+                    //nova lista é criada, removendo o ID
+                    let destinosFiltrados = destinosOriginais.filter(dest => dest !== idParaRemover);
+                    
+                    //se os tamanhos das listas não forem os mesmos, significa que havia transições indiretas apontando para o estado que foi excluído
+                    if (destinosOriginais.length !== destinosFiltrados.length) {
+                        trans[label] = destinosFiltrados; //atualiza a lista, removendo o destino excluído
+                        console.log(`Removida transição ${idEstado} --${label}--> ${idParaRemover}`);
+                    }
+
+                    //se a lista estiver vazia, remove a chave
+                    //serve para evitar que transições sem destino permaneçam, desperdiçando memória
+                    if (trans[label].length === 0) {
+                        delete trans[label];
+                        console.log(`Removida chave de transição vazia '${label}' do estado ${idEstado}`);
+                    }
+                }
+            }
+
+            //caso estado removido tenha sido o inicial
+            if (automato.estadoInicial === idParaRemover) {
+                automato.estadoInicial = null;
+                console.log(`O estado removido era o inicial. Estado inicial apagado.`);
+            }
         }
     });
+
+    atualizaNextNodeId(); //corrige contador após remoção de estado
 }
 
 //função para atualizar a interface
@@ -161,6 +256,10 @@ function limpar() {
     nodes.clear();
     edges.clear();
     nextNodeId = 0;
+
+    //limpa todo o conteúdo do autômato
+    automato = {estados: {}};
+    estadoInicial = null;
     
     //limpa divs de controle
     document.getElementById("conectarEstados").innerHTML = "";
@@ -173,13 +272,7 @@ function setSymbol(inputId, symbol) {
     document.getElementById(inputId).value = symbol;
 }
 
-//variáveis para execução do autômato
-let estadoAtual = null;
-let cadeiaEntrada = "";
-let posicaoFita = 0;
-let pilha = [];
-let executando = false;
-let estadoInicial = null;
+
 
 //função para encontrar o estado inicial
 function encontrarEstadoInicial() {
@@ -305,8 +398,34 @@ function confirmarCadeia() {
     console.log("Estado inicial:", estadoAtual);
 }
 
+//função para inserção na pilha
+function inserirNaPilha(simbolo){
+    //verifica se é movimento vazio(ε)
+    if (simbolo === "ε") {
+        console.log("Movimento vazio: nada é adicionado à pilha.");
+        return;
+    }
+
+    //verifica se é teste(?)
+    if (simbolo === "?") {
+        console.log("Teste de topo da pilha: a pilha não é modificada.");
+        return;
+    }
+
+    //se é símbolo normal, adiciona na pilha
+    for (let i = simbolo.length - 1; i >= 0; i--) {
+        pilha.push(simbolo[i]);
+    }
+
+    console.log("Símbolos inseridos na pilha:", simbolo, "Pilha atual:", pilha);
+
+    //atualiza visualização da pilha
+    atualizarPilhaVisual();
+}
+
 //função para avançar 1 etapa na leitura
 function proximo() {
+
     if (!executando) {
         alert("Por favor, confirme uma cadeia primeiro.");
         return;
@@ -317,51 +436,87 @@ function proximo() {
         return;
     }
     
-    //pega símbolo atual da fita
+    //pega símbolo atual da fita e do topo da pilha
     let simboloFita = posicaoFita < cadeiaEntrada.length ? cadeiaEntrada[posicaoFita] : "";
     let topoPilha = pilha.length > 0 ? pilha[pilha.length - 1] : "";
     
     //busca transições possíveis do estado atual
-    let transicoes = edges.get({
-        filter: function(edge) {
-            return edge.from === estadoAtual;
+    // let transicoes = edges.get({
+    //     filter: function(edge) {
+    //         return edge.from === estadoAtual;
+    //     }
+    // });
+
+    //pega o objeto do estado atual no autômato
+    let estadoObj = automato.estados[estadoAtual];
+    if (!estadoObj) {
+        alert("Erro: Estado atual não existe no autômato.");
+        executando = false;
+        return;
+    }
+
+    let transicoes = []; //array para armazenar transições possíveis
+    
+    //converte o objeto de transições do autômato em array de objetos utilizáveis
+    for (let label in estadoObj.transicoes) {
+        let destinos = estadoObj.transicoes[label]; //array de ids de estados destino
+        let transObj = parsearTransicao(label); //transforma a label em {lerFita, lerPilha, escrevePilha}
+        if (!transObj) continue;
+
+        for (let destino of destinos) {
+            transicoes.push({ trans: transObj, destino: destino, label: label });
         }
-    });
+    }
     
     let transicaoEncontrada = null;
     
     //procura transição válida
-    for (let transicao of transicoes) {
-        let trans = parsearTransicao(transicao.label);
-        if (!trans) continue;
-        
-        //verifica se a transição é válida
-        let fitaValida = false;
-        let pilhaValida = false;
-        
+    for (let t of transicoes) {
+        let trans = t.trans;
+
         //verifica símbolo da fita
-        if (trans.lerFita === "" || trans.lerFita === "?") {
-            fitaValida = true; //movimento vazio ou teste
-        } else if (trans.lerFita === simboloFita) {
-            fitaValida = true;
-        }
-        
+        let fitaValida = trans.lerFita === "" || trans.lerFita === "?" || trans.lerFita === simboloFita;
         //verifica símbolo da pilha
-        if (trans.lerPilha === "" || trans.lerPilha === "?") {
-            pilhaValida = true; //movimento vazio ou teste
-        } else if (trans.lerPilha === topoPilha) {
-            pilhaValida = true;
-        }
-        
+        let pilhaValida = trans.lerPilha === "" || trans.lerPilha === "?" || trans.lerPilha === topoPilha;
+
         if (fitaValida && pilhaValida) {
-            transicaoEncontrada = { edge: transicao, trans: trans };
+            transicaoEncontrada = t; //encontrou transição válida
             break;
         }
     }
+    // for (let transicao of transicoes) {
+    //     let trans = parsearTransicao(transicao.label);
+    //     if (!trans) continue;
+        
+    //     //verifica se a transição é válida
+    //     let fitaValida = false;
+    //     let pilhaValida = false;
+        
+    //     //verifica símbolo da fita
+    //     if (trans.lerFita === "" || trans.lerFita === "?") {
+    //         fitaValida = true; //movimento vazio ou teste
+    //     } else if (trans.lerFita === simboloFita) {
+    //         fitaValida = true;
+    //     }
+        
+    //     //verifica símbolo da pilha
+    //     if (trans.lerPilha === "" || trans.lerPilha === "?") {
+    //         pilhaValida = true; //movimento vazio ou teste
+    //     } else if (trans.lerPilha === topoPilha) {
+    //         pilhaValida = true;
+    //     }
+        
+    //     if (fitaValida && pilhaValida) {
+    //         transicaoEncontrada = { edge: transicao, trans: trans };
+    //         break;
+    //     }
+    // }
     
+    //caso nenhuma transição válida tenha sido encontrada
     if (!transicaoEncontrada) {
         alert("Não há transição válida. A cadeia será rejeitada.");
         executando = false;
+        document.getElementById("rejeita").style.display = "block"; //rejeita cadeia
         return;
     }
     
@@ -380,19 +535,38 @@ function proximo() {
     
     if (trans.escrevePilha !== "" && trans.escrevePilha !== "?") {
         //escreve na pilha (adiciona símbolos na ordem)
-        for (let i = trans.escrevePilha.length - 1; i >= 0; i--) {
-            pilha.push(trans.escrevePilha[i]);
-        }
+        // for (let i = trans.escrevePilha.length - 1; i >= 0; i--) {
+        //     pilha.push(trans.escrevePilha[i]);
+        // }
+        inserirNaPilha(trans.escrevePilha);
     }
     
     //atualiza estado atual
-    estadoAtual = transicaoEncontrada.edge.to;
+    //estadoAtual = transicaoEncontrada.edge.to;
+    estadoAtual = transicaoEncontrada.destino;
     
     //atualiza visualizações
     atualizarPilhaVisual();
     atualizarEstadoVisual(estadoAtual);
     
-    console.log("Transição executada. Estado atual:", estadoAtual, "Posição fita:", posicaoFita);
+    console.log("Transição executada:", transicaoEncontrada.label, 
+                "Novo estado:", estadoAtual, 
+                "Posição fita:", posicaoFita, 
+                "Pilha:", pilha);
+
+    //tratamento de estado final
+    if (estadosFinais.includes(estadoAtual)){ //valida se estado atual é o final
+        if (posicaoFita >= cadeiaEntrada.length){ //e se toda a cadeia já foi lida
+
+            executando = false; //termina execução
+
+            //mostra resultado
+            document.getElementById("aceita").style.display = "block";
+
+            console.log("A cadeia foi aceita! Estado final alcançado.");
+            return;
+        }
+    }
 }
 
 //função para parar execução
@@ -403,4 +577,139 @@ function parar() {
     
     executando = false;
     console.log("Execução parada.");
+}
+
+function reiniciar(){
+    //valida se existe estado inicial no autômato
+    if (!estadoInicial || automato.estados[estadoInicial] === undefined) {
+        alert("Não há estado inicial definido no autômato.");
+        return;
+    }
+
+    //volta para o estado inicial
+    estadoAtual = estadoInicial;
+
+    //volta para o início da cadeia de entrada
+    posicaoFita = 0;
+
+    //remove tudo o que foi adicionado na pilha até o momento
+    pilha = [];
+
+    //atualiza aparência do site
+    atualizarPilhaVisual(); //altera pilha
+    atualizarEstadoVisual(estadoInicial); //atualiza destaque do estado atual
+    console.log("Execução reiniciada.");
+}
+
+//função para completar toda execução do autômato e retornar se a cadeia foi aceita ou não
+function finalizar(){
+    //copia o estado atual, posição de leitura e da pilha
+    let estadoAtual = estado;
+    let posicao = indexEntrada;
+    let pilhaTemp = [...pilha];
+
+    const cadeia = entrada.value; //pega cadeia inserida pelo usuário
+
+    //loop de execução do autômato
+    while(true){
+        //pega símbolo atual da cadeia
+        let simbolo = posicao < cadeia.length ? cadeia[posicao] : "";
+
+        const transicoes = automato[estadoAtual]; //pega todas as transições possíveis para o estado atual
+        if (!transicoes){ //se não existem transições, termina execução
+            console.log("Estado sem transições definidas:", estadoAtual);
+            break;
+        }
+
+        let transicaoEncontrada = null; //guarda a transição que for válida
+
+        //procura uma transição válida
+        for (const t of transicoes) {
+
+            const trans = parsearTransicao(t); //parse do label
+
+            //se o label não for válido, ignora
+            if (!trans) continue;
+
+            //valida se a transição aceita o símbolo atual
+            const leituraOk =
+                trans.ler === simbolo ||
+                trans.ler === "?" ||
+                (trans.ler === "ε" && simbolo === "");
+
+            //verifica se a transição aceita o topo da pilha.
+            const topo = pilhaTemp.length > 0 ? pilhaTemp[pilhaTemp.length - 1] : "";
+
+            const pilhaOk =
+                trans.lerPilha === topo ||
+                trans.lerPilha === "?" ||
+                (trans.lerPilha === "ε" && topo === "");
+
+            //caso leitura e pilha sejam compatíveis, para de procurar, já encontrou transição certa
+            if (leituraOk && pilhaOk) {
+                transicaoEncontrada = trans;
+                break;
+            }
+        }
+
+        //caso nenhuma transição possa ser aplicada, termina execução, autômato dá seu veredito
+        if (!transicaoEncontrada) {
+            console.log("Nenhuma transição adequada encontrada. Encerrando.");
+            break;
+        }
+
+        //aplica a transição encontrada
+        const trans = transicaoEncontrada;
+
+        //consome símbolo da cadeia
+        if (trans.ler !== "?" && trans.ler !== "ε") {
+            posicao++;
+        }
+
+        //remove do topo da pilha
+        if (trans.lerPilha !== "?" && trans.lerPilha !== "ε") {
+            pilhaTemp.pop();
+        }
+
+        //insere na pilha de trás para frente para que o último símbolo fique no topo
+        if (trans.escrevePilha !== "?" &&
+            trans.escrevePilha !== "ε") {
+
+            for (let i = trans.escrevePilha.length - 1; i >= 0; i--) {
+                pilhaTemp.push(trans.escrevePilha[i]);
+            }
+        }
+
+        //muda de estado, segue para o estado destino do atual
+        estadoAtual = trans.proxEstado;
+
+        //caso cadeia tenha terminado e estejamos no estado final, para execução e lança veredito
+        if (posicao >= cadeia.length && estadosFinais.includes(estadoAtual)) {
+            break;
+        }
+
+        //caso não haja mais símbolos para ler e a transição é: ler = ε, escrever = ε
+        //evita loop infinito
+        if (posicao >= cadeia.length &&
+            trans.ler === "ε" &&
+            trans.escrevePilha === "ε") {
+
+            console.warn("Loop infinito evitado em transições ε.");
+            break;
+        }
+
+        //veredito do autômato
+        if (estadosFinais.includes(estadoAtual)){ //se estado final consta na lista
+            //cadeia é aceita, mostra resultado no site
+            document.getElementById("aceita").style.display = "block";
+        } 
+        else{//senão
+            //cadeia é rejeitada, mostra resultado no site
+            document.getElementById("rejeita").style.display = "block";
+        }
+
+        //atualiza pilha visualmente para mostrar como ela ficou no fim da execução
+        pilha = [...pilhaTemp];
+        atualizarPilhaVisual();
+    }
 }
